@@ -17,7 +17,7 @@ class RegisterViewController: UIViewController {
     
     private let imgView: UIImageView = {
         let imagView = UIImageView()
-        imagView.image = UIImage(systemName: "person")
+        imagView.image = UIImage(systemName: "person.circle")
         imagView.tintColor = .gray
         imagView.contentMode = .scaleAspectFit
         imagView.layer.masksToBounds = true
@@ -164,15 +164,33 @@ class RegisterViewController: UIViewController {
             alertUserLoginError()
             return
         }
-        FirebaseAuth.Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
-            guard let result = authResult, error == nil else {
-                print("Error creating user")
+        DatabaseManager.shared.userExists(with: email) { [weak self] exists in
+            guard let strongSelf = self else {
                 return
             }
-            
-            let user = result.user
-            print("Created user:\(user)")
+//            DispatchQueue.main.async {
+//                strongSelf.spinner.dismiss()
+//            }
+            guard !exists else {
+                strongSelf.alertUserLoginError()
+                return
+            }
+            FirebaseAuth.Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
+                guard let strongSelf = self else {
+                    
+                    return
+                }
+                guard authResult != nil, error == nil else {
+                    print("Error creating user")
+                    return
+                }
+                
+                DatabaseManager.shared.insertUser(with: ChatAppUser(firstName: firstName, lastName: lastName, email: email))
+                strongSelf.navigationController?.dismiss(animated: true) {
+                }
+            }
         }
+        
     }
     
     func alertUserLoginError() -> Void {
