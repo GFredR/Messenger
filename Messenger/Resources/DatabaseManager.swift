@@ -11,7 +11,7 @@ let str = "https://messenger-f2ab3-default-rtdb.firebaseio.com/"
 final class DatabaseManager {
     static let shared = DatabaseManager()
     
-    let ref: DatabaseReference = Database.database().reference()
+    let ref: DatabaseReference = Database.database().reference(fromURL: "https://messenger-f2ab3-default-rtdb.firebaseio.com")
     
 }
 
