@@ -7,6 +7,7 @@ target 'Messenger' do
 pod 'Firebase/Core'
 pod 'Firebase/Auth'
 pod 'Firebase/Database'
+pod 'FBSDKLoginKit'
   # Pods for Messenger
 
   target 'MessengerTests' do

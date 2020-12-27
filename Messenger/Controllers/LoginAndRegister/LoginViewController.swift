@@ -7,6 +7,7 @@
 
 import UIKit
 import Firebase
+import FBSDKLoginKit
 class LoginViewController: UIViewController {
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -62,6 +63,12 @@ class LoginViewController: UIViewController {
         button.addTarget(self, action: #selector(loginButtonTapped), for: .touchUpInside)
         return button
     }()
+    
+    private let faceBookloginButton: FBLoginButton = {
+        let button = FBLoginButton()
+        button.permissions = ["email,public_profile"]
+        return button
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -71,13 +78,15 @@ class LoginViewController: UIViewController {
                                                             style: .done,
                                                             target: self,
                                                             action: #selector(didTapRegister))
-        emailField.delegate = self;
-        passwordField.delegate = self;
+        emailField.delegate = self
+        faceBookloginButton.delegate = self
+        passwordField.delegate = self
         view.addSubview(scrollView)
         scrollView.addSubview(imgView)
         scrollView.addSubview(emailField)
         scrollView.addSubview(passwordField)
         scrollView.addSubview(loginBtn)
+        scrollView.addSubview(faceBookloginButton)
         // Do any additional setup after loading the view.
     }
     
@@ -101,6 +110,12 @@ class LoginViewController: UIViewController {
                                 y: passwordField.bottom + 10,
                                 width: scrollView.width - 60,
                                 height: 52)
+        faceBookloginButton.frame = CGRect(x: 30,
+                                y: loginBtn.bottom + 10,
+                                width: scrollView.width - 60,
+                                height: 52)
+//        loginButton.center = scrollView.center
+//        loginButton.frame.origin.y = loginBtn.bottom + 20
     }
     
     @objc private func loginButtonTapped() -> Void {
@@ -152,4 +167,66 @@ extension LoginViewController: UITextFieldDelegate {
         }
         return true
     }
+}
+
+extension LoginViewController: LoginButtonDelegate {
+    func loginButton(_ loginButton: FBLoginButton, didCompleteWith result: LoginManagerLoginResult?, error: Error?) {
+        guard let token = result?.token?.tokenString else {
+            print("User faild to log in with facebook")
+            return
+        }
+        
+        let facebookRequest = FBSDKLoginKit.GraphRequest(graphPath: "me",
+                                                         parameters: ["fields": "email, name"],
+                                                         tokenString: token,
+                                                         version: nil,
+                                                         httpMethod: .get)
+        facebookRequest.start { ( _, result, error) in
+            guard let result = result as? [String: Any], error == nil else {
+                print("Failed to make facenook graph request")
+                return
+            }
+            print("\(result)")
+            guard let userName = result["name"] as? String,
+                  let email = result["email"] as? String else {
+                print("Failed to get email and name from fb result")
+                return
+            }
+            let nameComeponents = userName.components(separatedBy: " ")
+            
+            guard nameComeponents.count == 2 else {
+                return
+            }
+            let firstName = nameComeponents[0]
+            let lastName = nameComeponents[1]
+            
+            DatabaseManager.shared.insertUser(with: ChatAppUser(firstName: firstName, lastName: lastName, email: email))
+            
+            FirebaseAuth.Auth.auth().signIn(withCustomToken: token) {  [weak self] (aulthResult, error) in
+                guard let strongSelf = self else {
+                    return
+                }
+                guard aulthResult != nil, error == nil else {
+                    if let error = error {
+                        print("log in failed with token\(error)")
+                    }
+                    
+                    return
+                }
+                strongSelf.navigationController?.dismiss(animated: true) {
+                }
+            }
+        }
+    
+//        let credential = FacebookAuthProvider.credential(withAccessToken: token)
+        
+       
+        
+    }
+    
+    func loginButtonDidLogOut(_ loginButton: FBLoginButton) {
+        
+    }
+    
+    
 }
